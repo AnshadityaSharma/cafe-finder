@@ -121,10 +121,4 @@ my-cafe-finder/
 - **Location inaccurate?** Try on mobile with GPS/location enabled for best results.
 - **Directions not working?** Make sure location permissions are granted and API key is valid.
 
-## License
 
-MIT
-
----
-
-Made with ❤️ by Anshaditya Sharma
