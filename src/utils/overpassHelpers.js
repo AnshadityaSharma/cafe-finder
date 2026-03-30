@@ -204,3 +204,38 @@ export async function searchLocation(query) {
     lng: parseFloat(item.lon),
   }));
 }
+
+// ─── Reverse Geocoding ────────────────────────────────────────────────────────
+const _geocodeCache = new Map();
+
+export async function reverseGeocode(lat, lng) {
+  const key = `${roundCoord(lat)}_${roundCoord(lng)}`;
+  if (_geocodeCache.has(key)) return _geocodeCache.get(key);
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=17&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: { 'Accept-Language': 'en-US,en;q=0.9', 'User-Agent': 'CafeFinderApp/1.0' }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address || {};
+
+    // Build address from most-specific to least-specific fields available
+    const parts = [
+      a.road || a.pedestrian || a.footway || a.path || a.residential,
+      a.suburb || a.neighbourhood || a.quarter || a.hamlet,
+      a.city || a.town || a.village || a.county,
+    ].filter(Boolean);
+
+    // Fallback: grab first 3 segments of display_name
+    const address = parts.length > 0
+      ? parts.join(', ')
+      : (data.display_name?.split(',').slice(0, 3).join(', ') || null);
+
+    _geocodeCache.set(key, address);
+    return address;
+  } catch {
+    return null;
+  }
+}
