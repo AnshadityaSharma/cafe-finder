@@ -7,14 +7,16 @@ export default function Controls({ filters, onChange, onLocate }) {
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center', marginBottom: 12}}>
         <div>
           <div style={{fontWeight:600, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px'}}>Search Radius</div>
-          <div style={{fontFamily: 'Outfit', fontSize: 18, fontWeight: 700, color: '#ff3366'}}>{filters.radius} m</div>
+          <div style={{fontFamily: 'Outfit', fontSize: 18, fontWeight: 700, color: '#ff3366'}}>
+            {filters.radius >= 1000 ? `${(filters.radius / 1000).toFixed(1).replace(/\.0$/, '')} km` : `${filters.radius} m`}
+          </div>
         </div>
         <button onClick={onLocate} className="icon-button" style={{color: '#ff3366'}}>
           <Navigation size={18} />
         </button>
       </div>
 
-      <input className="range" type="range" min="250" max="5000" step="250" value={filters.radius} 
+      <input className="range" type="range" min="500" max="10000" step="500" value={filters.radius} 
         onChange={e => onChange({...filters, radius: Number(e.target.value)})} />
 
       <div style={{display:'flex', gap:16, marginTop:16, alignItems:'center', flexWrap: 'wrap'}}>
