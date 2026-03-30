@@ -1,23 +1,25 @@
 import React from 'react'
-import { getPhotoUrl } from '../utils/placesHelpers'
+import { Star } from 'lucide-react'
 
 export default function PlaceCard({ place, onClick }) {
-  const address = place.formattedAddress || place.vicinity || place.formatted_address || ''
-  const rating = place.rating ? Number(place.rating).toFixed(1) : 'N/A'
-  const reviews = place.userRatingCount || place.user_ratings_total || 0
-  const photo = (place.photos && place.photos[0]) ? getPhotoUrl(place.photos[0], 400) : null
+  const address = place.formattedAddress || 'Address not available'
+  const rating = place.rating || 'N/A'
+  const reviews = place.userRatingCount || 0
+  const letter = place.displayName ? place.displayName.charAt(0).toUpperCase() : '?'
 
   return (
-    <div className="place-card" onClick={onClick} role="button">
+    <div className="place-card" onClick={onClick} role="button" tabIndex={0}>
       <div className="thumb">
-        {photo ? (
-          <img src={photo} alt={place.displayName || place.name} style={{width:'100%',height:'100%',objectFit:'cover'}} />
-        ) : <div>☕</div>}
+        <span style={{color: 'var(--primary)', fontWeight: 800, fontFamily: 'Outfit', fontSize: 22}}>{letter}</span>
       </div>
       <div className="meta">
         <div className="name">{place.displayName || place.name}</div>
+        <div className="rating-row">
+          <Star size={12} fill="#FFB800" color="#FFB800" />
+          <span style={{fontWeight: 600, color: 'var(--text-main)'}}>{rating}</span>
+          <span>({reviews} reviews)</span>
+        </div>
         <div className="sub">{address}</div>
-        <div className="small">{rating} ★ • {reviews} reviews</div>
       </div>
     </div>
   )

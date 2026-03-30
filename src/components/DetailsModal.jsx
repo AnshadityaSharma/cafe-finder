@@ -1,83 +1,88 @@
 import React from 'react'
-import closeIcon from '../assets/icons/close.svg'
-import directionsIcon from '../assets/icons/directions.svg'
-import { motion } from 'framer-motion'
-import { getPhotoUrl } from '../utils/placesHelpers'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Navigation, Globe, Star, Users } from 'lucide-react'
 import useMediaQuery from '../hooks/useMediaQuery'
 
 export default function DetailsModal({ place, onClose, onDirections }) {
   if (!place) return null
-  const photos = place.photos || []
-  const reviews = place.reviews || []
   const isMobile = useMediaQuery('(max-width: 899px)')
+  
+  // Since we're using Overpass API, photos and reviews aren't natively supported. 
+  // We can show placeholder or omit them. Overpass only returns basic tags.
+  const tags = place.tags || {}
+  const phone = tags.phone || tags['contact:phone']
+  const website = tags.website || tags['contact:website']
+  const openingHours = tags.opening_hours
 
   const content = (
-    <div>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+    <div className="details-content">
+      <div className="details-header">
         <div>
-          <div style={{fontWeight:800}}>{place.name}</div>
-          <div className="small">{place.formatted_address || place.vicinity}</div>
-          <div className="small" style={{marginTop:6}}>Rating: {place.rating || 'N/A'} ({place.user_ratings_total || 0})</div>
+          <h2 className="details-title">{place.displayName || place.name}</h2>
+          <p className="details-address">{place.formattedAddress}</p>
+          <div className="details-rating">
+            <Star size={14} fill="#FFB800" color="#FFB800" />
+            <span style={{fontWeight: 600}}>{place.rating}</span>
+            <span className="small-text">({place.userRatingCount} reviews)</span>
+          </div>
         </div>
-        <div style={{marginLeft:12}}>
-          <button onClick={onClose} style={{border:'none',background:'transparent',padding:2,cursor:'pointer'}} title="Close">
-            <img src={closeIcon} alt="Close" style={{width:22,height:22,display:'block',opacity:0.8,transition:'opacity 0.15s'}} onMouseOver={e=>e.currentTarget.style.opacity=1} onMouseOut={e=>e.currentTarget.style.opacity=0.8} />
-          </button>
-        </div>
+        <button onClick={onClose} className="icon-button close-btn" title="Close">
+          <X size={20} />
+        </button>
       </div>
 
-      <div className="photos-row" style={{marginTop:12}}>
-        {photos.length === 0 && <div className="small">No photos</div>}
-        {photos.slice(0,6).map((p,i) => {
-          const url = getPhotoUrl(p, 400)
-          return url ? <img key={i} src={url} alt={`p-${i}`} /> : null
-        })}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <button className="btn" style={{display:'flex',alignItems:'center',gap:6}} onClick={() => onDirections && onDirections()}>
-          <img src={directionsIcon} alt="Directions" style={{width:18,height:18,display:'inline'}} />
+      <div className="details-actions">
+        <button className="btn btn-primary" onClick={() => onDirections && onDirections()}>
+          <Navigation size={16} />
           Directions
         </button>
-        {place.website && (
-          <a
-            className="btn"
-            style={{ background: '#fff', color: '#ff6b92', border: '1px solid #eee' }}
-            href={place.website}
-            target="_blank"
-            rel="noreferrer"
-          >
+        {website && (
+          <a className="btn btn-outline" href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noreferrer">
+            <Globe size={16} />
             Website
           </a>
         )}
       </div>
 
-
-      <div style={{marginTop:12}}>
-        <div style={{fontWeight:700}}>Top reviews</div>
-        <div style={{marginTop:8}}>
-          {reviews.length === 0 && <div className="small">No reviews available.</div>}
-          {reviews.slice(0,3).map((r,i) => (
-            <div key={i} style={{background:'#fafafa',padding:8,borderRadius:8,marginBottom:8}}>
-              <div style={{fontWeight:700}}>{r.author_name} • {r.rating} ★</div>
-              <div style={{fontSize:13,marginTop:6}}>{r.text}</div>
-            </div>
-          ))}
-        </div>
+      <div className="details-info-section">
+        {openingHours && (
+          <div className="info-row">
+            <strong>Hours:</strong> <span>{openingHours}</span>
+          </div>
+        )}
+        {phone && (
+          <div className="info-row">
+            <strong>Phone:</strong> <span>{phone}</span>
+          </div>
+        )}
+        {tags['cuisine'] && (
+          <div className="info-row">
+            <strong>Cuisine:</strong> <span style={{textTransform: 'capitalize'}}>{tags['cuisine'].replace(/;/g, ', ')}</span>
+          </div>
+        )}
+        {tags['wheelchair'] && (
+          <div className="info-row">
+            <strong>Wheelchair accessible:</strong> <span>{tags['wheelchair']}</span>
+          </div>
+        )}
       </div>
     </div>
   )
 
   if (isMobile) {
     return (
-      <motion.div initial={{y:300}} animate={{y:0}} exit={{y:300}} className="details-sheet">
-        {content}
-      </motion.div>
+      <AnimatePresence>
+        <motion.div initial={{y:300, opacity:0}} animate={{y:0, opacity:1}} exit={{y:300, opacity:0}} transition={{type:'spring', damping: 25, stiffness: 200}} className="details-sheet glass-panel">
+          {content}
+        </motion.div>
+      </AnimatePresence>
     )
   }
   return (
-    <motion.div initial={{y:40,opacity:0}} animate={{y:0,opacity:1}} className="details-desktop">
-      {content}
-    </motion.div>
+    <AnimatePresence>
+      <motion.div initial={{y:40, opacity:0, scale:0.95}} animate={{y:0, opacity:1, scale:1}} exit={{opacity:0, scale:0.95}} transition={{type:'spring', damping: 25, stiffness: 200}} className="details-desktop glassmorphism">
+        {content}
+      </motion.div>
+    </AnimatePresence>
   )
 }

@@ -1,23 +1,28 @@
 import React from 'react'
+import { Coffee, UtensilsCrossed, Landmark, Beer, BedDouble, TreePine } from 'lucide-react'
+
+const tabs = [
+  { key: 'cafes', label: 'Cafes', Icon: Coffee },
+  { key: 'restaurants', label: 'Restaurants', Icon: UtensilsCrossed },
+  { key: 'bars', label: 'Bars', Icon: Beer },
+  { key: 'hotels', label: 'Hotels', Icon: BedDouble },
+  { key: 'parks', label: 'Parks', Icon: TreePine },
+  { key: 'tourist', label: 'Tourist', Icon: Landmark },
+]
 
 export default function NavTabs({ active, onChange }) {
   return (
-    <div style={{display:'flex',gap:8,alignItems:'center'}}>
-      <button onClick={() => onChange('cafes')} style={tabStyle(active==='cafes')}>☕ Cafes</button>
-      <button onClick={() => onChange('tourist')} style={tabStyle(active==='tourist')}>📍 Tourist</button>
-      <button onClick={() => onChange('restaurants')} style={tabStyle(active==='restaurants')}>🍽 Restaurants</button>
+    <div className="nav-tabs-bar">
+      {tabs.map(({ key, label, Icon }) => (
+        <button
+          key={key}
+          onClick={() => onChange(key)}
+          className={`nav-tab ${active === key ? 'active' : ''}`}
+        >
+          <Icon size={15} />
+          <span className="tab-label">{label}</span>
+        </button>
+      ))}
     </div>
   )
-}
-
-function tabStyle(isActive) {
-  return {
-    padding:'8px 12px',
-    borderRadius:12,
-    background: isActive ? 'rgba(255,255,255,0.95)' : 'transparent',
-    color: isActive ? '#ff6b92' : 'white',
-    border: 'none',
-    fontWeight:700,
-    cursor:'pointer'
-  }
 }

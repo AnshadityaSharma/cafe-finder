@@ -1,136 +1,144 @@
-import React, {useState, useEffect, useRef} from 'react'
+import React, {useState, useEffect, useRef, useCallback} from 'react'
 import PlaceCard from './PlaceCard'
 import Controls from './Controls'
-import { isGoogleLoaded } from '../utils/googleLoader'
-import { DEFAULT_RADIUS, MAX_PLACES } from '../constants'
+import { fetchNearbyPlaces, searchLocation } from '../utils/overpassHelpers'
+import { DEFAULT_RADIUS } from '../constants'
+import { Search, MapPin } from 'lucide-react'
 
-export default function PlacesPanel({ placeType, onSelect, filters, onFilterChange, center, onLocate, onCenterChange }) {
+export default function PlacesPanel({ placeType, onSelect, filters, onFilterChange, center, onLocate, onCenterChange, onCloseMobile, onPlacesLoad }) {
   const [places, setPlaces] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState([])
+  const [retryCount, setRetryCount] = useState(0)
   const debounceRef = useRef(null)
+  const fetchDebounceRef = useRef(null)
+
+  // Memoize the values we actually care about to avoid spurious re-fetches
+  const centerLat = center?.lat
+  const centerLng = center?.lng
+  const radius = filters?.radius || DEFAULT_RADIUS
+  const minRating = filters?.minRating || 0
 
   useEffect(() => {
-    let mounted = true
-    async function fetchNearby() {
-      setLoading(true); setError(null); setPlaces([])
-      if (!isGoogleLoaded()) { setError('Maps library not loaded yet'); setLoading(false); return }
-  try {
-        const request = {
-          // Required parameters for new API
-          fields: [
-            "displayName",
-            "formattedAddress",
-            "location",
-            "rating",
-            "userRatingCount",
-            "photos",
-            "id",
-            "businessStatus"
-          ],
-          locationRestriction: {
-            center: new window.google.maps.LatLng(center.lat, center.lng),
-            radius: filters.radius || DEFAULT_RADIUS,
-          },
-          includedPrimaryTypes: [placeType],
-          // Optional parameters
-          maxResultCount: Math.max(1, Math.min(MAX_PLACES, 20)),
-          // You can add more fields as needed, e.g. language, region
+    // Debounce the actual fetch by 600ms so rapid center changes
+    // (like multiple "my location" clicks) don't spam the API
+    if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current)
+    
+    fetchDebounceRef.current = setTimeout(() => {
+      let mounted = true
+
+      async function fetchNearby() {
+        if (!centerLat || !centerLng) return
+        setLoading(true)
+        setError(null)
+        // DON'T clear places here — keep showing old results until new ones arrive
+        try {
+          const list = await fetchNearbyPlaces(centerLat, centerLng, radius, placeType)
+          if (!mounted) return
+          const filtered = list.filter(r => minRating ? Number(r.rating) >= minRating : true)
+          const finalPlaces = filtered.slice(0, 60)
+          setPlaces(finalPlaces)
+          if (onPlacesLoad) onPlacesLoad(finalPlaces)
+          setError(null)
+        } catch (e) {
+          if (!mounted) return
+          setError(e.message)
+          // Keep existing places visible even if the new fetch failed
+        } finally {
+          if (mounted) setLoading(false)
         }
-        const { Place } = await window.google.maps.importLibrary('places');
-        Place.searchNearby(request)
-          .then(({ places }) => {
-            if (!mounted) return;
-            setLoading(false);
-            const list = Array.isArray(places) ? places : [];
-            const filtered = list.filter(r => filters.minRating ? (r.rating || 0) >= filters.minRating : true)
-            setPlaces(filtered.slice(0, MAX_PLACES))
-          })
-          .catch(err => {
-            if (!mounted) return;
-            setLoading(false);
-            setError('Places search failed: ' + (err && err.message ? err.message : String(err)))
-          });
-  } catch (e) { setError(e.message); setLoading(false) }
+      }
+
+      fetchNearby()
+
+      return () => { mounted = false }
+    }, 600)
+
+    return () => {
+      if (fetchDebounceRef.current) clearTimeout(fetchDebounceRef.current)
     }
-    fetchNearby()
-    return () => mounted = false
-  }, [placeType, filters, center])
+  }, [placeType, centerLat, centerLng, radius, minRating, retryCount])
 
   return (
-    <div>
-      <form onSubmit={e => e.preventDefault()} style={{marginBottom:10}}>
-        <div style={{display:'flex',gap:6, position:'relative'}}>
-          <input
-            value={query}
-            onChange={e => {
-              const v = e.target.value
-              setQuery(v)
-              setError(null)
-              // debounce suggestions
-              if (debounceRef.current) clearTimeout(debounceRef.current)
-              debounceRef.current = setTimeout(async () => {
-                if (!v) { setSuggestions([]); return }
-                if (!isGoogleLoaded()) { setError('Maps library not loaded yet'); return }
-                try {
-                  const { Place } = await window.google.maps.importLibrary('places')
-                  const res = await Place.searchByText({ text: v, fields: ['displayName','location'], maxResultCount: 5 })
-                  const list = (res && res.places) || []
-                  setSuggestions(list)
-                } catch (err) { setError('Autocomplete failed: ' + (err && err.message ? err.message : String(err))) }
-              }, 300)
-            }}
-            placeholder="Search a city or address"
-            style={{flex:1,padding:8}}
-          />
-          <button className="btn" type="button" onClick={async () => {
-            // select first suggestion or perform a direct search
-            try {
+    <div className="places-panel">
+      <form onSubmit={e => e.preventDefault()} style={{marginBottom:16}}>
+        <div style={{display:'flex', gap:6, position:'relative'}}>
+          <div className="search-input-wrapper" style={{flex: 1, position: 'relative'}}>
+            <Search size={18} className="search-icon" style={{position: 'absolute', left: 12, top: 12, color: '#888'}} />
+            <input
+              value={query}
+              onChange={e => {
+                const v = e.target.value
+                setQuery(v)
+                setError(null)
+                if (debounceRef.current) clearTimeout(debounceRef.current)
+                debounceRef.current = setTimeout(async () => {
+                  if (!v) { setSuggestions([]); return }
+                  try {
+                    const res = await searchLocation(v)
+                    setSuggestions(res)
+                  } catch (err) { /* silently ignore autocomplete errors */ }
+                }, 400)
+              }}
+              placeholder="Search a city or address..."
+              style={{width: '100%', padding:'10px 12px 10px 36px', borderRadius: 12, border: '1px solid #eef0f3', fontSize: 14, fontFamily: 'Inter'}}
+            />
+          </div>
+          <button className="btn btn-primary" type="button" onClick={() => {
               if (suggestions.length > 0) {
                 const s = suggestions[0]
-                const loc = s.location || s.geometry || null
-                if (loc) {
-                  const centerObj = loc.lat && loc.lng ? { lat: loc.lat, lng: loc.lng } : { lat: loc.lat(), lng: loc.lng() }
-                  onCenterChange && onCenterChange(centerObj)
-                  setSuggestions([])
-                }
+                onCenterChange && onCenterChange({ lat: s.lat, lng: s.lng })
+                setSuggestions([])
               }
-            } catch (err) { setError('Search failed: ' + String(err)) }
           }}>Go</button>
 
           {suggestions.length > 0 && (
-            <div style={{position:'absolute', top:40, left:0, right:0, background:'#fff', border:'1px solid #eee', zIndex:100, maxHeight:200, overflow:'auto'}}>
+            <div className="suggestions-dropdown">
               {suggestions.map((s, idx) => (
-                <div key={s.id || s.placeId || s.displayName || idx} style={{padding:8, borderBottom:'1px solid #fafafa', cursor:'pointer'}} onClick={() => {
-                  const loc = s.location || s.geometry || null
-                  if (loc) {
-                    const centerObj = loc.lat && loc.lng ? { lat: loc.lat, lng: loc.lng } : { lat: loc.lat(), lng: loc.lng() }
-                    onCenterChange && onCenterChange(centerObj)
-                    setQuery(s.displayName || s.name || '')
+                <div key={s.id || idx} className="suggestion-item" onClick={() => {
+                    onCenterChange && onCenterChange({ lat: s.lat, lng: s.lng })
+                    setQuery(s.displayName)
                     setSuggestions([])
-                  }
-                }}>{s.displayName || s.name}</div>
+                }}>
+                  <MapPin size={16} style={{marginRight: 8, color: '#666'}}/>
+                  <span style={{flex:1}}>{s.displayName}</span>
+                </div>
               ))}
             </div>
           )}
         </div>
       </form>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <h3 style={{margin:0}}>Explore</h3>
-        <div className="small">{places.length} results</div>
+      
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center', marginBottom: 12}}>
+        <h3 style={{margin:0, fontFamily: 'Outfit', fontSize: 22, fontWeight: 700}}>Explore Nearby</h3>
+        <div className="badge">{places.length} results</div>
       </div>
 
-      <div style={{marginTop:10}}><Controls filters={filters} onChange={onFilterChange} onLocate={onLocate} /></div>
+      <Controls filters={filters} onChange={onFilterChange} onLocate={onLocate} />
 
-      <div style={{marginTop:12}}>
-        {loading && <div className="small">Searching nearby…</div>}
-        {error && <div style={{color:'crimson'}}>{String(error)}</div>}
-        {!loading && places.length === 0 && !error && <div className="small">No results here. Try increasing the radius.</div>}
-        <div style={{marginTop:10}}>
+      <div style={{marginTop:20}}>
+        {loading && <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Searching nearby places...</p>
+        </div>}
+        {error && (
+          <div className="error-state">
+            <p>{String(error)}</p>
+            <button
+              className="btn btn-primary"
+              style={{marginTop: 12, fontSize: 13, padding: '8px 20px'}}
+              onClick={() => { setError(null); setRetryCount(c => c + 1); }}
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+        {!loading && places.length === 0 && !error && <div className="empty-state">No places found in this area. Try increasing the radius.</div>}
+        <div className="places-list">
           {places.map((p, i) => {
-            const key = p.id || p.place_id || p.placeId || p.displayName || p.name || i
+            const key = p.id || i
             return <PlaceCard key={key} place={p} onClick={() => onSelect(p)} />
           })}
         </div>
