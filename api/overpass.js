@@ -34,7 +34,11 @@ module.exports = async function handler(req, res) {
     try {
       const upstream = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'CafeFinderApp/1.0 (Vercel Proxy)',
+          'Accept': '*/*'
+        },
         body: `data=${encodeURIComponent(qlData)}`,
       });
 
