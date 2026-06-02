@@ -6,14 +6,25 @@ const ENDPOINTS = [
   'https://lz4.overpass-api.de/api/interpreter',
 ];
 
-export default async function handler(req, res) {
-  // Only allow POST
+module.exports = async function handler(req, res) {
+  // Allow POST only
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const body = req.body?.data;
-  if (!body) {
+  // Parse body — Vercel auto-parses JSON, but handle raw string too
+  let qlData;
+  if (typeof req.body === 'string') {
+    try {
+      qlData = JSON.parse(req.body).data;
+    } catch {
+      qlData = req.body;
+    }
+  } else {
+    qlData = req.body?.data;
+  }
+
+  if (!qlData) {
     return res.status(400).json({ error: 'Missing "data" field in request body' });
   }
 
@@ -24,22 +35,21 @@ export default async function handler(req, res) {
       const upstream = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(body)}`,
+        body: `data=${encodeURIComponent(qlData)}`,
       });
 
       if (upstream.status === 429 || upstream.status === 503 || upstream.status === 504) {
         lastError = `Endpoint ${url} returned ${upstream.status}`;
-        continue; // try next mirror
+        continue;
       }
 
       if (!upstream.ok) {
-        lastError = `Endpoint ${url} returned ${upstream.status}`;
+        lastError = `Endpoint ${url} returned ${upstream.status}: ${await upstream.text().catch(() => 'no body')}`;
         continue;
       }
 
       const json = await upstream.json();
 
-      // Cache successful responses for 60s at the edge
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
       return res.status(200).json(json);
     } catch (err) {
@@ -48,9 +58,8 @@ export default async function handler(req, res) {
     }
   }
 
-  // All endpoints failed
   return res.status(502).json({
     error: 'All Overpass API endpoints failed',
     detail: lastError,
   });
-}
+};
