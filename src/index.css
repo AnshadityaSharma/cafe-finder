@@ -128,3 +128,32 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Utility constraints */
 .ps-rel { position: relative; }
+
+/* Dark Mode Overrides */
+html.dark {
+  --primary: #ff4d79;
+  --primary-hover: #ff7396;
+  --bg-color: #121212;
+  --surface: #1e1e1e;
+  --text-main: #ffffff;
+  --text-muted: #a1a1aa;
+  --border: #333333;
+}
+
+html.dark .glassmorphism {
+  background: rgba(30, 30, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html.dark .glass-panel {
+  background: rgba(30, 30, 30, 0.95);
+}
+
+html.dark .icon-button {
+  background: var(--surface);
+  color: var(--text-main);
+}
+
+html.dark .icon-button:hover {
+  color: var(--primary);
+}

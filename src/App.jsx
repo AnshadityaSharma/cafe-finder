@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { X, Moon, Sun } from 'lucide-react'
 
 import NavTabs from './components/NavTabs'
 import MapView from './components/MapView'
@@ -11,6 +11,9 @@ import './index.css'
 import './App.css'
 
 export default function App() {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('darkMode') === 'true'
+  })
   const [activeTab, setActiveTab] = useState('cafes')
   const [selectedPlace, setSelectedPlace] = useState(null)
   const [places, setPlaces] = useState([])
@@ -19,6 +22,16 @@ export default function App() {
   const [mobileListOpen, setMobileListOpen] = useState(false)
 
   const isMobile = useMediaQuery('(max-width: 899px)')
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('darkMode', 'true')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('darkMode', 'false')
+    }
+  }, [isDarkMode])
 
   function handleLocate() {
     if (!navigator.geolocation) {
@@ -45,8 +58,16 @@ export default function App() {
           <div className="brand">
             <div className="brand-title">Cafe Finder</div>
           </div>
-          <div className="header-controls">
+          <div className="header-controls" style={{ display: 'flex', alignItems: 'center' }}>
             <NavTabs active={activeTab} onChange={setActiveTab} />
+            <button 
+              className="icon-button" 
+              onClick={() => setIsDarkMode(!isDarkMode)} 
+              aria-label="Toggle dark mode"
+              style={{ marginLeft: '16px' }}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
           </div>
         </div>
       </header>

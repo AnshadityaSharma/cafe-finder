@@ -20,23 +20,35 @@ async function throttle() {
 }
 
 // ─── HTTP ─────────────────────────────────────────────────────────────────────
-async function httpPost(url, body, retries = 2) {
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter'
+];
+
+async function httpPost(body, retries = 2) {
   for (let i = 0; i <= retries; i++) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body
-      });
-      if (res.status === 429 || res.status === 503 || res.status === 504) {
-        if (i < retries) { await new Promise(r => setTimeout(r, 3000 * (i + 1))); continue; }
+    for (const url of OVERPASS_ENDPOINTS) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+        if (res.status === 429 || res.status === 503 || res.status === 504) {
+          continue; // Try next endpoint
+        }
+        return res;
+      } catch (err) {
+        // Network/CORS error, try next endpoint
+        continue;
       }
-      return res;
-    } catch (err) {
-      if (i === retries) throw err;
-      await new Promise(r => setTimeout(r, 3000 * (i + 1)));
+    }
+    if (i < retries) {
+      await new Promise(r => setTimeout(r, 2000 * (i + 1)));
     }
   }
+  throw new Error('All Overpass API endpoints failed. Please try again later.');
 }
 
 // ─── Query builder ────────────────────────────────────────────────────────────
@@ -131,17 +143,15 @@ export async function fetchNearbyPlaces(lat, lng, radius, placeType) {
   const inner = buildQuery(lat, lng, radius, placeType);
   const ql = `[out:json][timeout:30];${inner}out body center qt;`;
 
-  const res = await httpPost(
-    'https://overpass-api.de/api/interpreter',
-    `data=${encodeURIComponent(ql)}`
-  );
+  let res;
+  try {
+    res = await httpPost(`data=${encodeURIComponent(ql)}`);
+  } catch (err) {
+    throw new Error('Could not reach the places database. Check your connection and try again.');
+  }
 
   if (!res || !res.ok) {
-    throw new Error(
-      res?.status === 429
-        ? 'Too many requests — wait a moment and try again.'
-        : 'Could not reach the places database. Check your connection and try again.'
-    );
+    throw new Error('Could not reach the places database. Check your connection and try again.');
   }
 
   const data = await res.json();
