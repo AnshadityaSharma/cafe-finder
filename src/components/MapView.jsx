@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { Navigation, Locate } from 'lucide-react'
 import L from 'leaflet'
 import DetailsModal from './DetailsModal'
@@ -34,14 +34,14 @@ export default function MapView({
   filters,
   mobileDrawerOpenToggle
 }) {
-  const containerRef = useRef(null)
-  const mapRef = useRef(null)
-  const markersRef = useRef([])
-  const userMarkerRef = useRef(null)
+  const containerRef = React.useRef(null)
+  const mapRef = React.useRef(null)
+  const markersRef = React.useRef([])
+  const userMarkerRef = React.useRef(null)
   const isMobile = useMediaQuery('(max-width: 899px)')
 
   // 1. Create map once
-  useEffect(() => {
+  React.useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
     mapRef.current = L.map(containerRef.current, {
@@ -67,7 +67,7 @@ export default function MapView({
   }, [])
 
   // 2. Pan map when center changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (!mapRef.current || !center) return
     mapRef.current.flyTo([center.lat, center.lng], 15, { animate: true, duration: 1.2 })
 
@@ -82,7 +82,7 @@ export default function MapView({
   }, [center])
 
   // 3. Update place markers when places array changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (!mapRef.current) return
 
     // Clear old markers
@@ -110,7 +110,7 @@ export default function MapView({
             onCenterChange({ lat: p.coords.latitude, lng: p.coords.longitude, _userLocation: true })
           }, e => alert(e.message), { enableHighAccuracy: true })
         }}>
-          <Locate size={20} color="#333" />
+          <Locate size={20} />
         </button>
       </div>
 
@@ -118,7 +118,7 @@ export default function MapView({
       {isMobile && (
         <div className="map-floating-btn top-right glassmorphism">
           <button className="icon-button" onClick={() => mobileDrawerOpenToggle && mobileDrawerOpenToggle()}>
-            <Navigation size={20} color="#333" />
+            <Navigation size={20} />
           </button>
         </div>
       )}

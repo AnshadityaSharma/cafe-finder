@@ -20,33 +20,53 @@ async function throttle() {
 }
 
 // ─── HTTP ─────────────────────────────────────────────────────────────────────
-const OVERPASS_ENDPOINTS = [
+// In production (Vercel), requests go through /api/overpass (same-origin proxy)
+// which eliminates CORS entirely. In local dev, fall back to direct calls.
+const IS_DEV = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+const DIRECT_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://lz4.overpass-api.de/api/interpreter'
+  'https://lz4.overpass-api.de/api/interpreter',
 ];
 
-async function httpPost(body, retries = 2) {
+async function httpPost(ql, retries = 2) {
+  // ── Production: use the Vercel serverless proxy ──
+  if (!IS_DEV) {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const res = await fetch('/api/overpass', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: ql }),
+        });
+        if (res.ok) return res;
+        if (res.status === 429 || res.status === 502 || res.status === 503) {
+          if (i < retries) { await new Promise(r => setTimeout(r, 2000 * (i + 1))); continue; }
+        }
+        return res;
+      } catch (err) {
+        if (i === retries) throw err;
+        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+      }
+    }
+  }
+
+  // ── Dev fallback: direct Overpass calls ──
   for (let i = 0; i <= retries; i++) {
-    for (const url of OVERPASS_ENDPOINTS) {
+    for (const url of DIRECT_ENDPOINTS) {
       try {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body
+          body: `data=${encodeURIComponent(ql)}`,
         });
-        if (res.status === 429 || res.status === 503 || res.status === 504) {
-          continue; // Try next endpoint
-        }
+        if (res.status === 429 || res.status === 503 || res.status === 504) continue;
         return res;
-      } catch (err) {
-        // Network/CORS error, try next endpoint
+      } catch {
         continue;
       }
     }
-    if (i < retries) {
-      await new Promise(r => setTimeout(r, 2000 * (i + 1)));
-    }
+    if (i < retries) await new Promise(r => setTimeout(r, 2000 * (i + 1)));
   }
   throw new Error('All Overpass API endpoints failed. Please try again later.');
 }
@@ -145,7 +165,7 @@ export async function fetchNearbyPlaces(lat, lng, radius, placeType) {
 
   let res;
   try {
-    res = await httpPost(`data=${encodeURIComponent(ql)}`);
+    res = await httpPost(ql);
   } catch (err) {
     throw new Error('Could not reach the places database. Check your connection and try again.');
   }

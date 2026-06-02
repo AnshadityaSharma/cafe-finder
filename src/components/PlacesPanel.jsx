@@ -102,7 +102,7 @@ export default function PlacesPanel({ placeType, onSelect, filters, onFilterChan
       <form onSubmit={e => e.preventDefault()} style={{marginBottom:16}}>
         <div style={{display:'flex', gap:6, position:'relative'}}>
           <div className="search-input-wrapper" style={{flex: 1, position: 'relative'}}>
-            <Search size={18} style={{position: 'absolute', left: 12, top: 12, color: '#aaa', pointerEvents: 'none'}} />
+            <Search size={18} style={{position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)', pointerEvents: 'none'}} />
             <input
               value={query}
               onChange={e => {
@@ -118,7 +118,7 @@ export default function PlacesPanel({ placeType, onSelect, filters, onFilterChan
                 }, 400)
               }}
               placeholder="Search a city or address..."
-              style={{width: '100%', padding:'10px 12px 10px 36px', borderRadius: 12, border: '1px solid #eef0f3', fontSize: 14, fontFamily: 'Inter', outline: 'none'}}
+              className="search-input"
             />
           </div>
           <button className="btn btn-primary" type="button" onClick={() => {
@@ -137,7 +137,7 @@ export default function PlacesPanel({ placeType, onSelect, filters, onFilterChan
                   setQuery(s.displayName)
                   setSuggestions([])
                 }}>
-                  <MapPin size={15} style={{marginRight: 8, flexShrink: 0, color: '#999'}}/>
+                  <MapPin size={15} style={{marginRight: 8, flexShrink: 0, color: 'var(--text-muted)'}}/>
                   <span style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.displayName}</span>
                 </div>
               ))}

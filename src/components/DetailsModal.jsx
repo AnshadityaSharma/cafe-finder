@@ -67,19 +67,19 @@ export default function DetailsModal({ place, onClose, onDirections }) {
         <div className="details-info-section">
           {openingHours && (
             <div className="info-row">
-              <Clock size={14} style={{marginRight:8, flexShrink:0, color:'#888'}} />
+              <Clock size={14} style={{marginRight:8, flexShrink:0, color:'var(--text-muted)'}} />
               <span>{openingHours}</span>
             </div>
           )}
           {phone && (
             <div className="info-row">
-              <Phone size={14} style={{marginRight:8, flexShrink:0, color:'#888'}} />
+              <Phone size={14} style={{marginRight:8, flexShrink:0, color:'var(--text-muted)'}} />
               <span>{phone}</span>
             </div>
           )}
           {cuisine && (
             <div className="info-row">
-              <span style={{marginRight:8, color:'#888', fontSize:13}}>Cuisine</span>
+              <span style={{marginRight:8, color:'var(--text-muted)', fontSize:13}}>Cuisine</span>
               <span style={{textTransform:'capitalize'}}>{cuisine}</span>
             </div>
           )}
